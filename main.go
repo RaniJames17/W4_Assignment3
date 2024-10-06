@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,18 +20,7 @@ var shifts []Shift
 var nextID = 1
 
 func main() {
-	http.HandleFunc("/shifts", shiftsHandler)
-	http.HandleFunc("/shifts/", shiftsHandler)
-
-	fmt.Println("Starting server on :8000")
-	if err := http.ListenAndServe(":8000", nil); err != nil {
-		fmt.Println("Error starting server:", err)
-	}
-}
-
-func shiftsHandler(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/shifts/")
-	if id == "" || id == "/" {
+	http.HandleFunc("/shifts", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			getAllShifts(w, r)
@@ -39,25 +29,70 @@ func shiftsHandler(w http.ResponseWriter, r *http.Request) {
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
+	})
+	http.HandleFunc("/shifts/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/shifts/")
+		switch r.Method {
+		case http.MethodGet:
+			getShiftByID(w, r, id)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	fmt.Println("Starting server on :8000")
+	if err := http.ListenAndServe(":8000", nil); err != nil {
+		fmt.Println("Error starting server:", err)
 	}
 }
 
 func getAllShifts(w http.ResponseWriter, r *http.Request) {
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(shifts)
 }
 
 func createShift(w http.ResponseWriter, r *http.Request) {
-
-	var shift Shift
-	if err := json.NewDecoder(r.Body).Decode(&shift); err != nil {
+	var newshift Shift
+	if err := json.NewDecoder(r.Body).Decode(&newshift); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	shift.ID = nextID
+
+	// Parse start_time and end_time
+	startTime, err := time.Parse(time.RFC3339, newshift.StartTime.Format(time.RFC3339))
+	if err != nil {
+		http.Error(w, "Invalid start time format", http.StatusBadRequest)
+		return
+	}
+	endTime, err := time.Parse(time.RFC3339, newshift.EndTime.Format(time.RFC3339))
+	if err != nil {
+		http.Error(w, "Invalid end time format", http.StatusBadRequest)
+		return
+	}
+
+	newshift.ID = nextID
 	nextID++
-	shifts = append(shifts, shift)
+	newshift.StartTime = startTime
+	newshift.EndTime = endTime
+	shifts = append(shifts, newshift)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(shift)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(newshift)
+}
+
+func getShiftByID(w http.ResponseWriter, r *http.Request, idStr string) {
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid shift ID", http.StatusBadRequest)
+		return
+	}
+
+	for _, shift := range shifts {
+		if shift.ID == id {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(shift)
+			return
+		}
+	}
+	http.NotFound(w, r)
 }
