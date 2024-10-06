@@ -16,10 +16,11 @@ type Shift struct {
 	EndTime   time.Time `json:"end_time"`
 }
 
-var shifts []Shift
-var nextID = 1
+var shifts []Shift // Slice to store shifts
+var nextID = 1     // Variable to keep track of the next ID to be assigned
 
 func main() {
+	// Handle requests to /shifts
 	http.HandleFunc("/shifts", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -30,6 +31,8 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+
+	// Handle requests to /shifts/{id}
 	http.HandleFunc("/shifts/", func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/shifts/")
 		switch r.Method {
@@ -50,11 +53,13 @@ func main() {
 	}
 }
 
+// getAllShifts handles GET requests to retrieve all shifts
 func getAllShifts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(shifts)
 }
 
+// createShift handles POST requests to create a new shift
 func createShift(w http.ResponseWriter, r *http.Request) {
 	var newshift Shift
 	if err := json.NewDecoder(r.Body).Decode(&newshift); err != nil {
@@ -62,7 +67,7 @@ func createShift(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse start_time and end_time
+	// Parse start_time and end_time and Error handling
 	startTime, err := time.Parse(time.RFC3339, newshift.StartTime.Format(time.RFC3339))
 	if err != nil {
 		http.Error(w, "Invalid start time format", http.StatusBadRequest)
@@ -84,6 +89,7 @@ func createShift(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newshift)
 }
 
+// getShiftByID handles GET requests to retrieve a shift by ID
 func getShiftByID(w http.ResponseWriter, r *http.Request, idStr string) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
@@ -101,6 +107,7 @@ func getShiftByID(w http.ResponseWriter, r *http.Request, idStr string) {
 	http.NotFound(w, r)
 }
 
+// updateShift handles PUT requests to update a shift by ID
 func updateShift(w http.ResponseWriter, r *http.Request, idStr string) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
@@ -127,6 +134,7 @@ func updateShift(w http.ResponseWriter, r *http.Request, idStr string) {
 	http.NotFound(w, r)
 }
 
+// deleteShift handles DELETE requests to delete a shift by ID
 func deleteShift(w http.ResponseWriter, r *http.Request, idStr string) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
