@@ -35,6 +35,10 @@ func main() {
 		switch r.Method {
 		case http.MethodGet:
 			getShiftByID(w, r, id)
+		case http.MethodPut:
+			updateShift(w, r, id)
+		case http.MethodDelete:
+			deleteShift(w, r, id)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -91,6 +95,49 @@ func getShiftByID(w http.ResponseWriter, r *http.Request, idStr string) {
 		if shift.ID == id {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(shift)
+			return
+		}
+	}
+	http.NotFound(w, r)
+}
+
+func updateShift(w http.ResponseWriter, r *http.Request, idStr string) {
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid shift ID", http.StatusBadRequest)
+		return
+	}
+
+	var updatedShift Shift
+	if err := json.NewDecoder(r.Body).Decode(&updatedShift); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for i, shift := range shifts {
+		if shift.ID == id {
+			shifts[i].Employee = updatedShift.Employee
+			shifts[i].StartTime = updatedShift.StartTime
+			shifts[i].EndTime = updatedShift.EndTime
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(shifts[i])
+			return
+		}
+	}
+	http.NotFound(w, r)
+}
+
+func deleteShift(w http.ResponseWriter, r *http.Request, idStr string) {
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		http.Error(w, "Invalid shift ID", http.StatusBadRequest)
+		return
+	}
+
+	for i, shift := range shifts {
+		if shift.ID == id {
+			shifts = append(shifts[:i], shifts[i+1:]...)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 	}
